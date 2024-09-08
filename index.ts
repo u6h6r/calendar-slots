@@ -270,57 +270,41 @@ export const getSlots = async (
   // Find all slots
   const allPotentialSlots: Slot[] = [];
   const differenceInMinutes = moment(params.to).diff(params.from, "minutes");
-  let endDate = moment(params.from).hours(0).minutes(0).seconds(0);
-  while (moment(endDate).isBefore(params.to)) {
+  const timezone = params.daily?.timezone ?? "UTC"; // Default to UTC if no timezone is provided
+
+  let endDate = moment(params.from)
+    .tz(timezone)
+    .hours(0)
+    .minutes(0)
+    .seconds(0); // Adjust timezone
+  while (endDate.isBefore(moment(params.to).tz(timezone))) {
     const start = endDate;
     const end = moment(start).add(slotDuration, "minutes");
-    const now = moment();
+    const now = moment().tz(timezone); // Ensure "now" uses timezone
 
     if (
-      daysAllowed.includes(moment(start).day()) &&
+      daysAllowed.includes(start.day()) &&
       daysAllowed.includes(end.day()) &&
       start.isAfter(
         moment(params.from)
+          .tz(timezone)
           .hours((params.daily?.from ?? [])[0] ?? 0)
           .minutes((params.daily?.from ?? [])[1] ?? 0)
           .seconds((params.daily?.from ?? [])[2] ?? 0)
       ) &&
       end.isBefore(
         moment(params.to)
+          .tz(timezone)
           .hours((params.daily?.to ?? [])[0] ?? 0)
           .minutes((params.daily?.to ?? [])[1] ?? 0)
           .seconds((params.daily?.to ?? [])[2] ?? 0)
       ) &&
       start.isAfter(now)
     ) {
-      const startTime = moment(start);
-      const endTime = moment(end);
-
-      let dailyConditionsMet = true;
-      if (params.daily)
-        if (
-          moment.tz(startTime, params.daily.timezone).isBefore(
-            moment
-              .tz(startTime, params.daily.timezone)
-              .hours((params.daily.from ?? [])[0] ?? 0)
-              .minutes((params.daily.from ?? [])[1] ?? 0)
-              .seconds((params.daily.from ?? [])[2] ?? 0)
-          ) ||
-          moment.tz(endTime, params.daily.timezone).isAfter(
-            moment
-              .tz(endTime, params.daily.timezone)
-              .hours((params.daily.to ?? [])[0] ?? 0)
-              .minutes((params.daily.to ?? [])[1] ?? 0)
-              .seconds((params.daily.to ?? [])[2] ?? 0)
-          )
-        )
-          dailyConditionsMet = false;
-
-      if (dailyConditionsMet)
-        allPotentialSlots.push({
-          start: startTime.toDate(),
-          end: endTime.toDate(),
-        });
+      allPotentialSlots.push({
+        start: start.toDate(),
+        end: end.toDate(),
+      });
     }
     endDate = end;
   }
